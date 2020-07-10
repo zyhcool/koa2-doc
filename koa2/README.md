@@ -233,11 +233,124 @@ Just do it
 
 ## 源码阅读
 为什么我们需要阅读源码？
-首先我们需要学会阅读源码的最直接理由是Koa官网的文档
+首先我们需要学会阅读源码的最直接理由是Koa官网的文档虽然已经很详细地记录了koa的大部分用法，但是如果不明白内部的封装代码，我们会被koa暴露的接口所迷惑，比如启动服务的方法就有两种：
+```javascript
+// 1
+const Koa = require('koa');
+const app = new Koa();
+app.listen(3000);
+// 2
+const http = require('http');
+const Koa = require('koa');
+const app = new Koa();
+http.createServer(app.callback()).listen(3000);
+```
+你是不是对第二种实现方式的`app.callback()`有所疑惑，这个`callback`方法是实现了什么功能呢？如果这时候我们不深入阅读源码的话，就不能明白底层的实现，那koa对我们使用者来说就像个黑盒，只知道如何使用而不明白内中原理。一旦我们在开发过程中遇到bug，更是无法定位问题
 
 
 首先我们应该先会用，知道koa为我们提供了哪些接口，才能更高效地阅读源码；知其然，知其所以然
 TODO 前置知识 nodejs：Stream、events、http等
+
+
+
+koa的全部代码只有4个js文件，接下来我们进行的源码阅读是简略版的阅读，只挑出最重要的部分代码讲解
+
+### Application.js
+上文众多代码实例中的导出的Koa是Application.js导出的类`const Koa = require('koa')`
+
+```javascript
+module.exports = class Application extends Emitter {...}
+```
+`Application`类继承自`events`模块的`EventEmitter`类
+Application有4个重要的属性：
+```javascript
+this.middleware = [];
+this.context = Object.create(context);
+this.request = Object.create(request);
+this.response = Object.create(response);
+```
+其中：
+- middleware 是指定的中间件函数组成的数组
+- context 是上下文对象，是对原生req和res的封装对象
+- request 是请求对象，封装集成了很多请求相关的属性和方法
+- response 是响应对象，封装集成了很多响应相关的属性和方法
+
+```javascript
+listen(...args) {
+    const server = http.createServer(this.callback());
+    return server.listen(...args);
+  }
+```
+listen方法实际上封装了原生http创建服务的方法，当调用`app.listen(3000)`时，便同时启动了服务和监听端口，所以说`listen`方法是原生的语法糖
+注意到`this.callback()`，我们大概可以猜测出Application的callback方法应该是返回一个函数：`(req,res) => {...}`作为`http.createServer`的回调函数
+
+
+
+```javascript
+  use(fn) {
+    this.middleware.push(fn);
+    return this;
+  }
+```
+use方法便是添加中间件函数的方法，添加的中间件都存放在属性middlerware中
+
+
+
+```javascript
+  callback() {
+    const fn = compose(this.middleware);
+    const handleRequest = (req, res) => {
+      const ctx = this.createContext(req, res);
+      return this.handleRequest(ctx, fn);
+    };
+    return handleRequest;
+  }
+
+  handleRequest(ctx, fnMiddleware) {
+    const onerror = err => ctx.onerror(err);
+    const handleResponse = () => respond(ctx);
+    return fnMiddleware(ctx).then(handleResponse).catch(onerror);
+  }
+```
+callback方法确实返回新的函数handleRequest，在这个函数中，通过createContext的方法封装出了ctx，并将ctx交给this.handleRequest处理
+compose
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
