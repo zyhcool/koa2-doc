@@ -313,50 +313,90 @@ use方法便是添加中间件函数的方法，添加的中间件都存放在�
   }
 ```
 callback方法确实返回新的函数handleRequest，在这个函数中，通过createContext的方法封装出了ctx，并将ctx交给this.handleRequest处理
-compose
+callback方法的第一行代码是使用compose函数将添加的中间件组合成新的函数fn，fn的功能是按洋葱模型的顺序执行各个中间件函数
+compose函数来自koa-compose包，只有不到50行代码：
 
+```javascript
+function compose (middleware) {
+  return function (context, next) {
+    return dispatch(0)
+    function dispatch (i) {
+      let fn = middleware[i]
+      if (i === middleware.length) fn = next
+      if (!fn) return Promise.resolve()
+      try {
+        return Promise.resolve(fn(context, dispatch.bind(null, i + 1)));
+      } catch (err) {
+        return Promise.reject(err)
+      }
+    }
+  }
+}
+```
+compose返回的函数执行了dispatch函数，我们看看dispatch函数的作用，根据传入的参数i来执行第i个中间件，并将下一个中间件函数作为参数传入中间件函数中：
+```javascript
+let fn = middleware[i]
+...
+return Promise.resolve(fn(context, dispatch.bind(null, i + 1)))
+```
+记得中间件的函数签名：(ctx,next) => {...}，这里next（下个中间件）便是dispatch.bind(null, i+1)
+所以抽象出来讲，dispatch函数的作用便是：执行当前第i个中间件，并开始第i+1个中间件的执行
 
+这里对于中间件的执行结果还包裹在一层Promise.resolve中，因为中间件函数也可以是async/await函数，如：
+```javascript
+app.use(async (ctx,next)=>{
+  let user = await userRepository.find({id:'fakeuserid'}); // 查询数据的异步操作
+  ctx.body = user;
+  await next()
+})
+```
 
+createContext函数包装了context（ctx）对象
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+respond方法封装了处理响应的方法，在所有中间件执行完成（并返回值）后，respond方法对该请求做出最后的响应
+```javascript
+fnMiddleware(ctx).then(handleResponse).catch(onerror)
+```
+Application类的主要方法就这些
 
 TODO application.js
+
+
+
+
+### context.js
+该文件导出context对象
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 TODO context.js
 TODO request.js
 TODO response.js
