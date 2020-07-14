@@ -3,6 +3,12 @@ let Koa = require('./app')
 let app = new Koa()
 
 app.use((ctx, next) => {
+    const start = Date.now();
+    next();
+    const ms = Date.now() - start;
+    console.log(`${ctx.method} ${ctx.url} ${ms}ms`);
+})
+app.use((ctx, next) => {
     ctx.body = 'Hello World'
     next();
 })

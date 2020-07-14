@@ -1,16 +1,29 @@
-let ctx = {
-
-}
+let ctx = {}
 
 function delegateGetter(target, name) {
-    ctx.__defineGetter__(name, function () {
-        return this[target][name];
+    Object.defineProperty(ctx, name, {
+        get: function () {
+            return this[target][name];
+        }
     })
 }
 
 function delegateSetter(target, name) {
-    ctx.__defineSetter__(name, function (value) {
-        this[target][name] = value;
+    Object.defineProperty(ctx, name, {
+        set: function (value) {
+            this[target][name] = value;
+        }
+    })
+}
+
+function delegateAccess(target, name) {
+    Object.defineProperty(ctx, name, {
+        get: function () {
+            return this[target][name];
+        },
+        set: function (value) {
+            this[target][name] = value;
+        }
     })
 }
 
@@ -20,12 +33,12 @@ function delegateMethod(target, name) {
     }
 }
 
-delegateGetter('request', 'url');
-delegateSetter('request', 'url');
+delegateAccess('request', 'url');
+delegateAccess('request', 'method');
 
-delegateGetter('response', 'body');
-delegateSetter('response', 'body');
+delegateAccess('response', 'body');
 
+delegateMethod('request', 'get');
 
 
 module.exports = ctx

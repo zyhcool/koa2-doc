@@ -665,14 +665,29 @@ app.listen(3000, () => {
 let ctx = {}
 
 function delegateGetter(target, name) {
-    ctx.__defineGetter__(name, function () {
-        return this[target][name];
+    Object.defineProperty(ctx, name, {
+        get: function () {
+            return this[target][name];
+        }
     })
 }
 
 function delegateSetter(target, name) {
-    ctx.__defineSetter__(name, function (value) {
-        this[target][name] = value;
+    Object.defineProperty(ctx, name, {
+        set: function (value) {
+            this[target][name] = value;
+        }
+    })
+}
+
+function delegateAccess(target, name) {
+    Object.defineProperty(ctx, name, {
+        get: function () {
+            return this[target][name];
+        },
+        set: function (value) {
+            this[target][name] = value;
+        }
     })
 }
 
@@ -682,64 +697,68 @@ function delegateMethod(target, name) {
     }
 }
 
+delegateAccess('request', 'url');
+delegateAccess('response', 'body');
+delegateMethod('request', 'get');
+
 module.exports = ctx
+```
+通过设置代理，我们可以通过ctx.body访问或设置ctx.response.body的值，通过ctx.get调用ctx.request.get方法
+
+> 实现代理的原理是通过Object.defineProperty方法在代理对象上定义新的属性或方法
+
+
+#### request.js
+request对象没有什么比较特殊的属性，不展开
+
+#### response.js
+response对象的上文提到response对象上的body属性，body属性的值是响应主体
+```javascript
+let response = {
+    get body() {
+        return this._body;
+    },
+    set body(value) {
+        this._body = value;
+    }
+}
+
+module.exports = response
+```
+在实际使用中，我们经常直接使用ctx.body而不是ctx.response.body，所以这里需要对body属性进行代理
+```javascript 
+// ctx.js
+...
+delegateAccess('response', 'body');
+```
+
+响应数据可以是空数据，可以是字符串，也可以是json对象等。不同的数据类型响应头的字段和值也不尽相同：
+- 当body为空，响应头字段的Content-Type应该去掉
+- 当body为网页，Content-Type是text/html
+- 当body为json数据时，Content-Type是application/json
+修改response.js：
+```javascript
+let response = {
+    get body() {
+        return this._body;
+    },
+    set body(value) {
+        this._body = value;
+        if (typeof value == null) {
+            this.res.removeHeader('Content-Type');
+            this.res.removeHeader('Content-Length');
+            this.res.removeHeader('Transfer-Encoding');
+            return;
+        }
+    }
+}
+
+module.exports = response
 ```
 
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-TODO application.js
-TODO context.js
-TODO request.js
-TODO response.js
 
 ## 参考资料
 1. [koa官网](https://koajs.com/)
