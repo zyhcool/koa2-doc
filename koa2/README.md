@@ -397,16 +397,403 @@ TODO application.js
 
 
 
-TODO context.js
-TODO request.js
-TODO response.js
 
 
-## 简单实现
-TODO application.js
-TODO context.js
-TODO request.js
-TODO response.js
+
+
+
+
+### context.js
+context.js文件导出一个对象：
+```javascript
+const proto = module.exports = {...};
+```
+ctx对象封装了一些简单的方法和属性，其中最重要的属delegate函数实现的属性和方法的委托：
+```javascript
+delegate(proto, 'response')
+  .method('attachment')
+  ...
+  .access('status')
+  ...
+  .getter('headerSent')
+  ...
+/**
+ * Request delegation.
+ */
+delegate(proto, 'request')
+  .method('acceptsLanguages')
+  ...
+  .access('querystring')
+  ...
+  .getter('origin')
+  ...
+```
+该方法最终实现可以在ctx对象上访问ctx.request和ctx.response的某些属性和方法，即：
+```javascript
+ctx.status === ctx.response.status // true
+
+ctx.body = {success:true,data:"Hello World"}
+// or
+ctx.response.body = {success:true,data:"Hello World"}
+```
+
+上文中讲到，ctx对象在Application.createContext方法下获得更多的属性
+
+
+
+### request.js
+该文件导出request对象
+```javascript
+module.exports = {...}
+```
+request对象使用getter/setter的形式添加属性，大部分属性是对原生req对象的直接委托或处理过的委托
+```javascript
+get header() {
+  return this.req.headers;
+},
+set header(val) {
+  this.req.headers = val;
+},
+
+get headers() {
+  return this.req.headers;
+},
+set headers(val) {
+  this.req.headers = val;
+}
+...
+```
+request对象的属性header和headers实现对req对象headers的委托，即：
+```javascript
+ctx.request.header === ctx.request.headers === ctx.req.headers
+```
+requset对象就是这么简单，但如果要深入学习更底层具体的实现，会涉及到很多网络协议相关的知识
+
+
+
+
+### response.js
+response的思路大致跟request对象一致，这里不再展开，只是具体的实现可以看看
+
+
+
+
+上文已经讲解了koa的精髓，剔除掉一些非主要的部分可以免受过多信息的干扰，从而快速掌握koa的核心
+既然已经清楚了koa的核心代码，而且并不复杂，我们可以尝试着自己简单实现下koa
+
+### 需求分析
+1. 需要构建一个Application类，用于启动服务器、添加业务中间件函数、实现洋葱模型的中间件执行顺序、处理响应数据等功能
+2. 封装Context上下文对象，集成请求数据对象和响应数据对象、并实现部分属性在Context对象的委托
+3. 封装request对象，对原生req对象进行封装处理，屏蔽底层，开放安全的接口
+4. 封装response对象，对原生res对象进行封装处理，屏蔽底层，开放安全的接口
+
+
+
+### 代码抽象
+分别新建4个文件：app.js、ctx.js、request.js、response.js，根据需求抽象成代码：
+
+app.js
+```javascript
+// app.js
+class Application extends EventEmitter {
+  constructor () {
+    super();
+    this.middlewares = [];
+  }
+  // 添加中间件
+  use () {}
+
+  // 启动服务，监听端口
+  listen () {}
+
+  // 构建ctx对象
+  createContext() {}
+
+  // 生成回调函数，用于启动服务
+  callback() {}
+
+  // 处理响应数据
+  respond() {}
+}
+
+module.exports = Application
+```
+
+ctx.js
+```javascript
+// ctx.js
+const ctx = {
+  ...
+}
+
+// 委托属性和方法的函数
+function delegateGetter() {}
+function delegateSetter() {}
+function delegateMethod() {}
+
+module.exports = ctx
+```
+
+request.js
+```javascript
+// request.js
+const request = {
+  ...
+}
+module.exports = request
+```
+
+response.js
+```javascript
+// response.js
+const response = {
+  ...
+}
+module.exports = response
+```
+
+
+### 具体实现
+#### app.js
+首先实现Application类的方法：
+1. listen()方法启动服务
+2. callback()方法生成回调函数
+```javascript 
+const http = require('http')
+const EventEmitter = require('events');
+
+class Application extends EventEmitter {
+  constructor () {
+    super();
+  }
+
+  listen (...args) {
+    const server = http.createServer(this.callback());
+    server.listen(...args);
+  }
+  
+  callback() {
+    return (req,res)=>{
+      res.end('Hello World')
+    }
+  }
+
+  ...
+}
+
+module.exports = Application
+```
+
+启动koa服务器，监听3000端口，并测试下服务
+```javascript
+// index.js
+let Koa = require('./app')
+let app = new Koa()
+
+app.listen(3000,()=>{
+  console.log('服务启动成功，监听端口：3000')
+})
+```
+`curl http://localhost:3000`，返回 Hello World，说明服务启动成功
+
+
+3. use()方法添加中间件函数
+4. createContext()方法封装对象ctx
+5. response()方法对请求做出响应
+```javascript 
+const http = require('http')
+const EventEmitter = require('events');
+const compose = require('koa-compose')
+const context = require('./ctx')
+const request = require('./request')
+const response = require('./response')
+
+class Application extends EventEmitter {
+    constructor() {
+        super();
+        this.middlewares = [];
+        this.context = Object.create(context);
+        this.request = Object.create(request);
+        this.response = Object.create(response);
+    }
+
+    callback() {
+        const fn = compose(this.middlewares);
+        return (req, res) => {
+            const ctx = this.createContext(req, res);
+            return fn(ctx).then(() => this.respond(ctx)).catch((err) => { })
+        }
+    }
+
+    use(fn) {
+        this.middlewares.push(fn);
+        return this;
+    }
+
+    createContext(req, res) {
+        const context = Object.create(this.context);
+        const request = context.request = Object.create(this.request);
+        const response = context.response = Object.create(this.response);
+        context.app = request.app = response.app = this;
+        context.req = request.req = response.req = req;
+        context.res = request.res = response.res = res;
+        request.ctx = response.ctx = context;
+        request.response = response;
+        response.request = request;
+        return context;
+    }
+
+    respond(ctx) {
+        const body = ctx.body;
+        ctx.res.end(body);
+    }
+}
+
+module.exports = Application
+```
+
+启动koa服务器，监听3000端口，并测试下服务
+```javascript
+// index.js
+let Koa = require('./app')
+let app = new Koa()
+
+app.use((ctx, next) => {
+    ctx.body = 'Hello World'
+    next();
+})
+
+app.listen(3000, () => {
+    console.log('服务启动成功，监听端口：3000')
+})
+```
+`curl http://localhost:3000`，返回 Hello World，说明服务工作正常
+
+
+
+> 关于compose函数，也可以实现自己的简约版：
+> ```javascript
+> // compose.js
+> function compose(middlewares) {
+>     return (ctx) => {
+>         return dispatch(0);
+>         function dispatch(index) {
+>             const fn = middlewares[index];
+>             if (!fn) {
+>                 return Promise.resolve();
+>             }
+>             return Promise.resolve(fn(ctx, () => dispatch(index + 1)));
+>         }
+>     }
+> }
+> 
+> module.exports = compose;
+> ```
+
+
+
+
+
+#### ctx.js
+实现委托代理
+```javascript
+let ctx = {}
+
+function delegateGetter(target, name) {
+    Object.defineProperty(ctx, name, {
+        get: function () {
+            return this[target][name];
+        }
+    })
+}
+
+function delegateSetter(target, name) {
+    Object.defineProperty(ctx, name, {
+        set: function (value) {
+            this[target][name] = value;
+        }
+    })
+}
+
+function delegateAccess(target, name) {
+    Object.defineProperty(ctx, name, {
+        get: function () {
+            return this[target][name];
+        },
+        set: function (value) {
+            this[target][name] = value;
+        }
+    })
+}
+
+function delegateMethod(target, name) {
+    ctx[name] = function (...args) {
+        return this[target][name].call(ctx, ...args)
+    }
+}
+
+delegateAccess('request', 'url');
+delegateAccess('response', 'body');
+delegateMethod('request', 'get');
+
+module.exports = ctx
+```
+通过设置代理，我们可以通过ctx.body访问或设置ctx.response.body的值，通过ctx.get调用ctx.request.get方法
+
+> 实现代理的原理是通过Object.defineProperty方法在代理对象上定义新的属性或方法
+
+
+#### request.js
+request对象没有什么比较特殊的属性，不展开
+
+#### response.js
+response对象的上文提到response对象上的body属性，body属性的值是响应主体
+```javascript
+let response = {
+    get body() {
+        return this._body;
+    },
+    set body(value) {
+        this._body = value;
+    }
+}
+
+module.exports = response
+```
+在实际使用中，我们经常直接使用ctx.body而不是ctx.response.body，所以这里需要对body属性进行代理
+```javascript 
+// ctx.js
+...
+delegateAccess('response', 'body');
+```
+
+响应数据可以是空数据，可以是字符串，也可以是json对象等。不同的数据类型响应头的字段和值也不尽相同：
+- 当body为空，响应头字段的Content-Type应该去掉
+- 当body为网页，Content-Type是text/html
+- 当body为json数据时，Content-Type是application/json
+修改response.js：
+```javascript
+let response = {
+    get body() {
+        return this._body;
+    },
+    set body(value) {
+        this._body = value;
+        if (typeof value == null) {
+            this.res.removeHeader('Content-Type');
+            this.res.removeHeader('Content-Length');
+            this.res.removeHeader('Transfer-Encoding');
+            return;
+        }
+    }
+}
+
+module.exports = response
+```
+
+
+
+
 
 ## 参考资料
 1. [koa官网](https://koajs.com/)
