@@ -36,7 +36,7 @@ Cookies模块根据keys签发签名，签名的目的是为了保证cookie的安
 此时的响应头有两个Set-Cookie字段：
 ![dsf](/public/set-cookie.png)
 
-之后的请求头都会带上cookie字段：`mykey=vUhVi9CBHiRP1u+ymA60Jg==; mykey.sig=VGf3oXvPyPGSvyncLswMZ9ree3w`
+之后的请求头都会带上cookie字段，如：`mykey=vUhVi9CBHiRP1u+ymA60Jg==; mykey.sig=VGf3oXvPyPGSvyncLswMZ9ree3w`
 
 
 ### Keygrip
@@ -156,9 +156,47 @@ if (opts && signed) {
 }
 ```
 
+Cookies类在向下封装Cookie类，每条Set-Cookie便是由Cookie实例实现
+```javascript 
+Cookie.prototype.toString = function () {
+  return this.name + "=" + this.value
+};
+Cookie.prototype.toHeader = function () {
+  var header = this.toString()
 
+  if (this.maxAge) this.expires = new Date(Date.now() + this.maxAge);
 
+  if (this.path) header += "; path=" + this.path
+  if (this.expires) header += "; expires=" + this.expires.toUTCString()
+  if (this.domain) header += "; domain=" + this.domain
+  if (this.sameSite) header += "; samesite=" + (this.sameSite === true ? 'strict' : this.sameSite.toLowerCase())
+  if (this.secure) header += "; secure"
+  if (this.httpOnly) header += "; httponly"
 
+  return header
+};
+```
+Cookie的属性name和value便是[key=value]，toHeader方法拼接出完整的Set-Cookie的值
+
+初始化时接收的第三个参数attrs是与Cookies实例的set方法第三个参数opts一样：
+
+maxAge: a number representing the milliseconds from Date.now() for expiry 从现在算起到cookie过期的毫秒时长
+
+expires: a Date object indicating the cookie's expiration date (expires at the end of session by default). cookie过期的时间点，UTC时间格式
+
+path: a string indicating the path of the cookie (/ by default). cookie的path，默认为 /
+
+domain: a string indicating the domain of the cookie (no default). cookie有效的域名
+
+secure: a boolean indicating whether the cookie is only to be sent over HTTPS (false by default for HTTP, true by default for HTTPS). Read more about this option below. 默认为false，适用于HTTP；使用HTTPS时设置为true
+
+httpOnly: a boolean indicating whether the cookie is only to be sent over HTTP(S), and not made available to client JavaScript (true by default). 设置为true，则js脚本无法读取cookie
+
+sameSite: a boolean or string indicating whether the cookie is a "same site" cookie (false by default). This can be set to 'strict', 'lax', or true (which maps to 'strict').
+
+signed: a boolean indicating whether the cookie is to be signed (false by default). If this is true, another cookie of the same name with the .sig suffix appended will also be sent, with a 27-byte url-safe base64 SHA1 value representing the hash of cookie-name=cookie-value against the first Keygrip key. This signature key is used to detect tampering the next time a cookie is received.
+
+overwrite: a boolean indicating whether to overwrite previously set cookies of the same name (false by default). If this is true, all cookies set during the same request with the same name (regardless of path or domain) are filtered out of the Set-Cookie header when setting this cookie.
 
 
 
