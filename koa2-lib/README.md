@@ -192,18 +192,57 @@ secure: a boolean indicating whether the cookie is only to be sent over HTTPS (f
 
 httpOnly: a boolean indicating whether the cookie is only to be sent over HTTP(S), and not made available to client JavaScript (true by default). 设置为true，则js脚本无法读取cookie
 
-sameSite: a boolean or string indicating whether the cookie is a "same site" cookie (false by default). This can be set to 'strict', 'lax', or true (which maps to 'strict').
+sameSite: a boolean or string indicating whether the cookie is a "same site" cookie (false by default). This can be set to 'strict', 'lax', or true (which maps to 'strict').cookie的sameSite属性，用于防止CSRF（Cross Site Request Forgery, 跨站域请求伪造）
 
-signed: a boolean indicating whether the cookie is to be signed (false by default). If this is true, another cookie of the same name with the .sig suffix appended will also be sent, with a 27-byte url-safe base64 SHA1 value representing the hash of cookie-name=cookie-value against the first Keygrip key. This signature key is used to detect tampering the next time a cookie is received.
+signed: a boolean indicating whether the cookie is to be signed (false by default). If this is true, another cookie of the same name with the .sig suffix appended will also be sent, with a 27-byte url-safe base64 SHA1 value representing the hash of cookie-name=cookie-value against the first Keygrip key. This signature key is used to detect tampering the next time a cookie is received.指定cookie是否为签名cookie，若为true，则多一条以.sig为后缀的cookie
 
-overwrite: a boolean indicating whether to overwrite previously set cookies of the same name (false by default). If this is true, all cookies set during the same request with the same name (regardless of path or domain) are filtered out of the Set-Cookie header when setting this cookie.
-
-
+overwrite: a boolean indicating whether to overwrite previously set cookies of the same name (false by default). If this is true, all cookies set during the same request with the same name (regardless of path or domain) are filtered out of the Set-Cookie header when setting this cookie.是否覆盖之前设置的同名cookie
 
 
 
 
+### 简单实现Cookies和Keygrip
+#### Keygrip
+首先实现Keygrip：
+1. sign方法使用注册中的第一个秘钥生成签名
+2. verify方法验证数据合法性
+3. index方法找到数据所匹配的私钥索引
 
+```javascript
+const crypto = require('crypto');
+
+class Keygrip {
+    constructor(keys, algorithm, encoding) {
+        this.keys = keys;
+        this.algorithm = algorithm || 'sha1';
+        this.encoding = encoding || 'base64';
+    }
+    sign(data, key) {
+        key = key || this.keys[0];
+        return crypto
+            .createHmac(this.algorithm, key)
+            .update(data)
+            .digest(this.encoding);
+    }
+    verify(data, digest) {
+        return this.index(data, digest) > -1;
+    }
+    index(data, digest) {
+        for (var i = 0, l = this.keys.length; i < l; i++) {
+            if (digest === this.sign(data, keys[i])) {
+                return i
+            }
+        }
+        return -1
+    }
+}
+module.exports = Keygrip;
+```
+
+#### Cookies
+1. get方法获取cookie值（难点：需进行正则匹配）
+2. set方法设置响应头的Set-Cookie
+3. Cookie类实现单挑cookie的操作
 
 
 
