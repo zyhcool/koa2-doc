@@ -1,16 +1,13 @@
-const Keygrip = require('keygrip');
+const util = require('util')
 
-let keygrip = new Keygrip(['hello'], 'md5', 'base64')
+let a = {
+    [util.inspect.custom]() {
+        console.log('hello')
+    },
+    name: 'zyh',
+}
+
+util.inspect(a)
 
 
-const data = 'kjskdjkfjdjk'
-let digest = keygrip.sign(data)
-console.log(digest)
 
-const result = keygrip.verify(data, digest)
-console.log(result)
-
-let keygrip_new = new Keygrip(['xixi', 'hello'], 'md5', 'base64')
-
-const index = keygrip_new.index(data, digest);
-console.log(index)

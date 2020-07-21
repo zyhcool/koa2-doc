@@ -6,13 +6,24 @@ const crypto = require('crypto');
 const app = new Koa({
     keys: ['helloworld'],
     secure: true,
+    // proxy: true,
 });
 
 const router = new Router()
 
 router.get('/', async (ctx, next) => {
+    let res = ctx.res;
+    console.log('headerSent: ' + res.headersSent, 'finished: ' + res.finished)
+    res.writeHead(200)
+    console.log('headerSent: ' + res.headersSent, 'finished: ' + res.finished)
+    res.write('hello world');
+    console.log('headerSent: ' + res.headersSent, 'finished: ' + res.finished)
+    res.end()
+    console.log('headerSent: ' + res.headersSent, 'finished: ' + res.finished)
+
     console.log(1);
     await next();
+    console.log('headerSent: ' + res.headersSent, 'finished: ' + res.finished)
     console.log(2)
 })
 router.get('/hello', async (ctx, next) => {

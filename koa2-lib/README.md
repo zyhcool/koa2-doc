@@ -89,7 +89,7 @@ module.exports = Keygrip
 
 sign方法使用crypto模块以keys数组第一个值为秘钥，实现生成数据的加盐摘要，并且替换掉摘要中对URL不友好的字符，默认使用sha1算法，默认编码为base64
 
-index方法对keys数组循环，找到匹配原始数据和摘要的秘钥，若存在则返回秘钥在数组的下标，否则返回-1
+index方法对keys数组循环，找到匹配原始数据和摘要的秘钥，若存在则返回秘钥在数组的索引，否则返回-1
 
 veriry方法验证摘要与原始数据是否匹配，返回布尔值
 
@@ -132,8 +132,9 @@ Cookies.prototype.get = function (name, opts) {
   }
 };
 ```
-get方法接收的第一个参数name是cookie格式中[key:value]的key，从请求头中获取cookie的值，通过正则匹配出name对应的cookie值
-`remote = this.get(sigName)`语句递归调用get方法，获取name+.sig的cookie值，这是当signed:true时额外设置的cookie值
+get方法接收的第一个参数name是cookie格式中[key:value]的key，从请求头中获取cookie的值，通过正则表达式匹配出name对应的cookie值
+
+`remote = this.get(sigName)`语句递归调用get方法，获取name+'.sig'的cookie值，这是当signed:true时额外设置的cookie值
 
 第二个参数opts为可选参数，{signed:true}被传入时，说明需要获取的签名cookie，获取的cookie必须通过签名验证，否则返回undefined
 ```javascript
@@ -146,7 +147,7 @@ if (index < 0) {
 
 
 
-set方法设置响应头字段set-cookie，如果指定{signed: true}，则响应头多一条set-cookie数据，字段名为name+.sig，字段值为第一个cookie的加盐摘要
+set方法设置响应头字段set-cookie，如果指定{signed: true}，则响应头多一条set-cookie数据，字段名为name+'.sig'，字段值为第一个cookie的加盐摘要
 ```javascript
 if (opts && signed) {
     if (!this.keys) throw new Error('.keys required for signed cookies');
@@ -242,7 +243,99 @@ module.exports = Keygrip;
 #### Cookies
 1. get方法获取cookie值（难点：需进行正则匹配）
 2. set方法设置响应头的Set-Cookie
-3. Cookie类实现单挑cookie的操作
+3. Cookie类实现单条cookie的操作
+
+```javascript
+class Cookies {
+    constructor(request, response, options) {
+        this.request = request;
+        this.response = response;
+        if (options) {
+            this.keys = new Keygrip(options.keys);
+            this.secure = options.secure;
+        }
+    }
+    get(name, opts) {
+        let header = this.request.headers["cookie"];
+        let match = header.match(new RegExp(
+            "(?:^|;) *" +
+            name.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&") +
+            "=([^;]*)")
+        );
+        if (opts && opts.signed) {
+            const sigName = name + 'sig';
+            const data = name + '=' + match[1];
+            let sig = this.get(sigName);
+            let index = this.keys.index(data, sig);
+            // 如果index大于0，说明签名使用的秘钥是过期的秘钥，需要更新签名
+            if (index > 0) {
+                this.set(sigName, this.keys.sign(data), { signed: false })
+            }
+        }
+        return match[1];
+    }
+    set(name, value, opts) {
+        const headers = this.response.getHeader('Set-Cookie')
+        let cookie = new Cookie(name, value, opts);
+        this.pushCookie(headers, cookie);
+        if (opts && opts.signed) {
+            cookie.value = this.keys.sign(cookie.toString())
+            cookie.name += ".sig"
+            pushCookie(headers, cookie)
+        }
+        this.response.setHeader("Set-Cookie", headers);
+        return this;
+    }
+
+    pushCookie(headers, cookie) {
+        if (cookie.overwrite) {
+            for (var i = headers.length - 1; i >= 0; i--) {
+                if (headers[i].indexOf(cookie.name + '=') === 0) {
+                    headers.splice(i, 1)
+                }
+            }
+        }
+
+        headers.push(cookie.toHeader())
+    }
+}
+
+
+class Cookie {
+    constructor(name, value, opts) {
+        this.name = name;
+        this.value = value;
+        this.path = "/";
+        this.expires = undefined;
+        this.domain = undefined;
+        this.httpOnly = true;
+        this.sameSite = false;
+        this.secure = false;
+        this.overwrite = false;
+        for (let key in opts) {
+            this[key] = opts[key];
+        }
+    }
+    toString() {
+        return this.name + "=" + this.value
+    };
+    toHeader() {
+        var header = this.toString()
+
+        if (this.maxAge) this.expires = new Date(Date.now() + this.maxAge);
+
+        if (this.path) header += "; path=" + this.path
+        if (this.expires) header += "; expires=" + this.expires.toUTCString()
+        if (this.domain) header += "; domain=" + this.domain
+        if (this.sameSite) header += "; samesite=" + (this.sameSite === true ? 'strict' : this.sameSite.toLowerCase())
+        if (this.secure) header += "; secure"
+        if (this.httpOnly) header += "; httponly"
+
+        return header
+    };
+}
+
+```
 
 
 
