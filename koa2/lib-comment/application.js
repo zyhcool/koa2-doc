@@ -91,7 +91,7 @@ module.exports = class Application extends Emitter {
     if (typeof fn !== 'function') throw new TypeError('middleware must be a function!');
     // 如果是generator函数，则使用convert函数转换为普通函数
     // isGeneratorFunction判断函数是否为generator函数，通过函数的构造函数来判断
-    // convert函数返回新的一般函数
+    // convert函数返回符合中间件格式的新函数
     if (isGeneratorFunction(fn)) {
       deprecate('Support for generators will be removed in v3. ' +
         'See the documentation for examples of how to convert old middleware ' +
