@@ -11,19 +11,18 @@ const app = new Koa({
 
 const router = new Router()
 
-router.get('/', async (ctx, next) => {
-    let res = ctx.res;
-    console.log('headerSent: ' + res.headersSent, 'finished: ' + res.finished)
-    // res.writeHead(200)
-    console.log('headerSent: ' + res.headersSent, 'finished: ' + res.finished)
-    res.write('hello world');
-    console.log('headerSent: ' + res.headersSent, 'finished: ' + res.finished)
-    res.end()
-    console.log('headerSent: ' + res.headersSent, 'finished: ' + res.finished)
-
+router.get('/test', async (ctx, next) => {
+    let url = require('url')
+    let parsed = url.parse("http://user:pass@sub.example.com:8080/p/a/t/h?query=string#hashhash")
+    console.log(parsed, parsed.hash)
+    parsed.hash = 'hahahaah'
+    console.log(parsed)
+    console.log(parsed.href)
+    console.log(new URL("http://user:pass@sub.example.com:8080/p/a/t/h?query=string#hashhash"))
+    console.log(ctx.request.path)
+    console.log(ctx.req.url)
     console.log(1);
     await next();
-    console.log('headerSent: ' + res.headersSent, 'finished: ' + res.finished)
     console.log(2)
 })
 router.get('/hello', async (ctx, next) => {
@@ -58,6 +57,6 @@ router.get('/test', async (ctx, next) => {
 
 app.use(router.routes()).use(router.allowedMethods());
 
-app.listen(3000, () => {
+app.listen(80, () => {
     console.log(`listening on 3000...`)
 })
