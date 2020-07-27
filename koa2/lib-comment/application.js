@@ -1,4 +1,3 @@
-
 'use strict';
 
 /**
@@ -20,7 +19,9 @@ const http = require('http');
 const only = require('only');
 const convert = require('koa-convert');
 const deprecate = require('depd')('koa');
-const { HttpError } = require('http-errors');
+const {
+  HttpError
+} = require('http-errors');
 
 /**
  * Expose `Application` class.
@@ -35,16 +36,16 @@ module.exports = class Application extends Emitter {
    */
 
   /**
-    *
-    * @param {object} [options] Application options
-    * @param {string} [options.env='development'] Environment
-    * @param {string[]} [options.keys] Signed cookie keys
-    * @param {boolean} [options.proxy] Trust proxy headers
-    * @param {number} [options.subdomainOffset] Subdomain offset
-    * @param {boolean} [options.proxyIpHeader] proxy ip header, default to X-Forwarded-For
-    * @param {boolean} [options.maxIpsCount] max ips read from proxy ip header, default to 0 (means infinity)
-    *
-    */
+   *
+   * @param {object} [options] Application options
+   * @param {string} [options.env='development'] Environment
+   * @param {string[]} [options.keys] Signed cookie keys
+   * @param {boolean} [options.proxy] Trust proxy headers
+   * @param {number} [options.subdomainOffset] Subdomain offset
+   * @param {boolean} [options.proxyIpHeader] proxy ip header, default to X-Forwarded-For
+   * @param {boolean} [options.maxIpsCount] max ips read from proxy ip header, default to 0 (means infinity)
+   *
+   */
 
   constructor(options) {
     super();
@@ -87,7 +88,7 @@ module.exports = class Application extends Emitter {
 
   // 添加中间件函数
   use(fn) {
-    // 只能穿函数
+    // 只能传函数
     if (typeof fn !== 'function') throw new TypeError('middleware must be a function!');
     // 如果是generator函数，则使用convert函数转换为普通函数
     // isGeneratorFunction判断函数是否为generator函数，通过函数的构造函数来判断
@@ -182,7 +183,9 @@ function respond(ctx) {
   // HEAD方法的行为跟GET一样，就是不用返回body
   if ('HEAD' === ctx.method) {
     if (!res.headersSent && !ctx.response.has('Content-Length')) {
-      const { length } = ctx.response;
+      const {
+        length
+      } = ctx.response;
       if (Number.isInteger(length)) ctx.length = length;
     }
     return res.end();

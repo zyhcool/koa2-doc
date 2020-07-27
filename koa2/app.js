@@ -14,7 +14,7 @@ const router = new Router()
 router.get('/', async (ctx, next) => {
     let res = ctx.res;
     console.log('headerSent: ' + res.headersSent, 'finished: ' + res.finished)
-    res.writeHead(200)
+    // res.writeHead(200)
     console.log('headerSent: ' + res.headersSent, 'finished: ' + res.finished)
     res.write('hello world');
     console.log('headerSent: ' + res.headersSent, 'finished: ' + res.finished)
@@ -30,7 +30,10 @@ router.get('/hello', async (ctx, next) => {
     let cookie = ctx.cookies.get('mykey')
     console.log(cookie);
     if (!cookie) {
-        let user = { name: 'zyh', userId: 'fakeuserid' };
+        let user = {
+            name: 'zyh',
+            userId: 'fakeuserid'
+        };
         let digest = crypto.createHmac('md5', 'SECRECT').update(JSON.stringify(user)).digest('base64');
         // ctx.res.setHeader('Set-Cookie', digest)
         ctx.cookies.set('mykey', digest, {
@@ -44,6 +47,11 @@ router.get('/hello', async (ctx, next) => {
         })
     }
     ctx.body = 'Hello World!'
+    await next();
+})
+
+router.get('/test', async (ctx, next) => {
+    ctx.throw(404, new Error('iniini'));
     await next();
 })
 

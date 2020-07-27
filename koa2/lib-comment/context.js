@@ -1,4 +1,3 @@
-
 'use strict';
 
 /**
@@ -93,7 +92,8 @@ const proto = module.exports = {
    * @api public
    */
 
-  throw(...args) {
+  // throw方法可以返回给客户端http错误码，具体用法在上面的注释例子中
+  throw (...args) {
     throw createError(...args);
   },
 
@@ -133,7 +133,9 @@ const proto = module.exports = {
       return;
     }
 
-    const { res } = this;
+    const {
+      res
+    } = this;
 
     // first unset all headers
     /* istanbul ignore else */
