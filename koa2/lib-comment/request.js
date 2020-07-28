@@ -134,12 +134,9 @@ module.exports = {
     this.req.method = val;
   },
 
-  /**
-   * Get request pathname.
-   *
-   * @return {String}
-   * @api public
-   */
+  // 使用parseurl包来解析请求中的url，涉及到nodejs中的url模块的知识，
+  // 这个包对url模块进行封装，提供更简便快速的解析方法，并将解析结果缓存在req
+  // 对象的 _parsedUrl 属性值中
   get path() {
     return parse(this.req).pathname;
   },
@@ -157,7 +154,7 @@ module.exports = {
     url.pathname = path;
     url.path = null;
 
-    this.url = stringify(url);
+    this.url = stringify(url); // url.format方法剔除掉一些无关紧要的信息
   },
 
   /**
