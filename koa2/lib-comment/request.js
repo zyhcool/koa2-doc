@@ -157,26 +157,14 @@ module.exports = {
     this.url = stringify(url); // url.format方法剔除掉一些无关紧要的信息
   },
 
-  /**
-   * Get parsed query-string.
-   *
-   * @return {Object}
-   * @api public
-   */
-
+  // 返回query对象，从缓存中读取存在的值，避免频繁调用cup消耗型的qs.parse方法
   get query() {
     const str = this.querystring;
     const c = this._querycache = this._querycache || {};
     return c[str] || (c[str] = qs.parse(str));
   },
 
-  /**
-   * Set query-string as an object.
-   *
-   * @param {Object} obj
-   * @api public
-   */
-
+  // query对象转换成字符串储存
   set query(obj) {
     this.querystring = qs.stringify(obj);
   },

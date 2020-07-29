@@ -12,18 +12,11 @@ const app = new Koa({
 const router = new Router()
 
 router.get('/', async (ctx, next) => {
-    let url = require('url')
-    let parsed = url.parse("http://user:pass@sub.example.com:8080/p/a/t/h?query=string#hashhash")
-    console.log(parsed, parsed.hash)
-    parsed.hash = 'hahahaah'
-    console.log(parsed)
-    console.log(parsed.href)
-    console.log(new URL("http://user:pass@sub.example.com:8080/p/a/t/h?query=string#hashhash"))
-    console.log(ctx.request.path)
-    console.log(ctx.req.url)
-    console.log(1);
+    let fs = require('fs');
+    console.log(fs.statSync('app.js'))
+    console.log(ctx.request.fresh)
+    console.log(ctx.request.url, ctx.request.URL, ctx.request.originalUrl, ctx.request.origin);
     await next();
-    console.log(2)
 })
 router.get('/hello', async (ctx, next) => {
     let cookie = ctx.cookies.get('mykey')
@@ -49,6 +42,7 @@ router.get('/hello', async (ctx, next) => {
     await next();
 })
 
+let cache = {};
 router.get('/test', async (ctx, next) => {
     function fib(n) {
         let first = 1;
@@ -88,12 +82,12 @@ router.get('/test', async (ctx, next) => {
 
     let newfun = memoize(fib2);
     console.time('memoize:')
-    let n4 = newfun(30)
+    let n4 = newfun(45)
     console.log(n4)
     console.timeEnd('memoize:')
 
     console.time('digui:')
-    let n2 = fib2(30)
+    let n2 = fib2(45)
     console.log(n2)
     console.timeEnd('digui:')
 
@@ -104,7 +98,6 @@ router.get('/test', async (ctx, next) => {
     console.timeEnd('memo:')
 
     function memoize(func) {
-        let cache = {};
         return function (...args) {
             if (cache[args]) {
                 console.log(';;;;;;;;;;')
